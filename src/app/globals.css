@@ -1,0 +1,39 @@
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f7f4;
+  --surface:#ffffff;
+  --surface2:#f2f0ec;
+  --surface3:#e8e5e0;
+  --border:#dbd8d0;
+  --border-hi:#c4c0b6;
+  --text:#111;
+  --text-2:#444;
+  --text-3:#777;
+  --text-4:#aaa;
+  --accent:#111;
+  --exec:#1a4d8a;
+  --exec-bg:#eef3fc;
+  --exec-bd:#b8cfe8;
+  --done:#1a6e28;
+  --done-bg:#edf7ee;
+  --done-bd:#a8d8aa;
+  --warn:#7a4a00;
+  --warn-bg:#fdf5e6;
+  --warn-bd:#e8c97a;
+  --red:#b83232;
+  --red-bg:#fdf1f1;
+  --red-bd:#f0b8b8;
+  --blocked:#5a1a8a;
+  --blocked-bg:#f5eeff;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+  --r:4px;
+  --sh:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+::selection{background:#d4e8f5}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}

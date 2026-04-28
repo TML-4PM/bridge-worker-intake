@@ -1,0 +1,47 @@
+{
+  "idempotency_key": "t4h-pen-execution-bundle-bridge-handoff-2026-04-29-001",
+  "created_at": "2026-04-29T00:00:00+10:00",
+  "origin": "chatgpt-github-connector",
+  "destination": "bridge-worker-intake",
+  "reason": "PEN lane is under repair, so this handoff routes the existing execution bundle into the bridge intake lane.",
+  "reality_state": "PARTIAL",
+  "source_repo": "TML-4PM/the-pen",
+  "target_repo": "TML-4PM/bridge-worker-intake",
+  "bundle_refs": {
+    "worker": "TML-4PM/the-pen:tools/pen/pen_ingest_worker.mjs",
+    "workflow": "TML-4PM/the-pen:.github/workflows/pen-ingest.yml",
+    "bundle_manifest": "TML-4PM/the-pen:bundles/t4h-pen-execution-bundle-2026-04-29.json",
+    "receipt_issue": "TML-4PM/the-pen#38"
+  },
+  "bridge_payload": {
+    "operation": "bridge_intake_validate_and_receipt",
+    "safe_mode": true,
+    "steps": [
+      "fetch referenced bundle files from source repo",
+      "validate file presence and JSON contracts",
+      "write bridge-side runtime receipt",
+      "return receipt evidence to source issue reference"
+    ],
+    "external_side_effects": false
+  },
+  "expected_bridge_receipt": {
+    "path": "receipts/runtime/t4h-pen-execution-bundle-bridge-handoff-2026-04-29-001.receipt.json",
+    "minimum_fields": [
+      "idempotency_key",
+      "processed_at",
+      "worker",
+      "status",
+      "evidence_state",
+      "source_repo",
+      "outputs",
+      "errors"
+    ]
+  },
+  "done_definition": [
+    "bridge intake file exists",
+    "bridge worker consumes file",
+    "bridge receipt written",
+    "source issue updated with bridge receipt evidence"
+  ],
+  "rollback": "archive_not_delete; supersede with a new idempotency key if required"
+}

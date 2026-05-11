@@ -1,0 +1,59 @@
+{
+  "job_id": "test-20260511-2234-bridge-admin",
+  "issued_at": "2026-05-11T12:34:00Z",
+  "issued_by": "TML-4PM",
+  "env_targets": ["pen", "bridge", "dev", "prod"],
+  "job_type": "smoke_test",
+  "priority": "high",
+  "payload": {
+    "raw_content": "Bridge admin smoke test — sequential recon complete. Validate: handler.mjs routes, bwd_enqueue RPC, bridge-runner 5-agent pipeline, Vercel the-pen READY.",
+    "source": "perplexity-mcp-bridge-admin",
+    "project": "bridge-core",
+    "tags": ["smoke-test", "bridge-admin", "pen", "dev", "prod"],
+    "content_type": "instruction"
+  },
+  "targets": {
+    "pen": {
+      "repo": "TML-4PM/the-pen",
+      "vercel_project": "the-pen",
+      "latest_deploy": "dpl_DjhZbwjDShNFbvcGmXmu6qtzojeH",
+      "state": "READY"
+    },
+    "bridge": {
+      "repo": "TML-4PM/mcp-bridge-invoke-handler",
+      "version": "v5.1",
+      "region": "ap-southeast-2",
+      "allowlist_source": "supabase:mcp_lambda_registry",
+      "state": "LIVE"
+    },
+    "dev": {
+      "repo": "TML-4PM/bridge-worker-intake",
+      "vercel_project": "bridge-worker-intake",
+      "drop_route": "/api/drop",
+      "state": "PARTIAL — issue #1 open"
+    },
+    "prod": {
+      "repo": "TML-4PM/bridge-runner",
+      "pipeline": "5-agent",
+      "schedule": "EventBridge 6am AEDT",
+      "skus": 154,
+      "state": "DEPLOYED — issue #2 blocking sql-executor"
+    }
+  },
+  "blocking_issues": [
+    {
+      "issue": 2,
+      "repo": "TML-4PM/bridge-worker-intake",
+      "title": "troy-sql-executor masks pg INSERT failures as success (zero rows land)",
+      "fix": "Treat command:null as hard failure; surface pg error code + constraint"
+    },
+    {
+      "issue": 1,
+      "repo": "TML-4PM/bridge-worker-intake",
+      "title": "Runtime Validation — queue write unproven, worker unknown, no receipt",
+      "fix": "POST /api/drop smoke test; confirm Supabase row; emit receipt"
+    }
+  ],
+  "status": "PARTIAL",
+  "next": "Fix issue #2 (sql-executor null guard) → re-run seed → close issue #1 → upgrade to REAL"
+}

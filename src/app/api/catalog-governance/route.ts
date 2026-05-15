@@ -1,136 +1,204 @@
+// ============================================================
+// SERVICE CATALOG GOVERNANCE — API ROUTE
+// GET  /api/catalog-governance?action=overview|items|changes|retire_check
+// POST /api/catalog-governance  { action: 'validate'|'change_request' }
+// ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  CatalogItem, ChangeRequest,
-  resolveApprovalTier, resolveRequiredApprovers,
-  retirementSafetyCheck, validateMetadata, isStale,
+  ServiceCatalogItem,
+  ChangeRequest,
+  validateServiceMetadata,
+  retirementSafetyCheck,
+  buildIFADSEvent,
+  resolveRiskTier,
 } from '@/lib/catalog-governance';
 
-const ITEMS: CatalogItem[] = [
+// ----------------------------------------------------------------
+// SEED DATA — swap these for Supabase queries
+// ----------------------------------------------------------------
+const ITEMS: ServiceCatalogItem[] = [
   {
-    id: 'svc-001', service_name: 'WorkFamilyAI Intake',
-    service_owner: 'troy@tech4humanity.com.au', fulfillment_owner: 'platform-team',
-    domain: 'AI Suitability', category: 'Intake',
-    description: 'Intake workflow for WorkFamilyAI requests.',
-    consumer: 'Organisation leads', sla: '2 business days',
-    lifecycle_state: 'active', review_date: '2026-06-01',
-    replacement_item: null, dependency_refs: [],
-    created_at: '2026-01-10T00:00:00Z', updated_at: '2026-05-01T00:00:00Z',
+    id: 'SVC-001',
+    name: 'WorkFamilyAI',
+    description: 'Adaptive AI support for workplace and family participation contexts',
+    owner_team: 'T4H Product',
+    owner_email: 'troy.latter@4pm.net.au',
+    escalation_email: 'troy.latter@4pm.net.au',
+    population: 'working families and HR practitioners',
+    research_lines: ['RL-01', 'RL-07'],
+    evidence: [{ id: 'TI-01', label: 'Workplace AI Suitability Study', verified: true }],
+    ifads_hooks: [{ code: 'population_mismatch', trigger: 'Service used outside working family context', severity: 'high' }],
+    risk_tier: 'medium',
+    lifecycle: 'beta',
+    inputs: ['user role', 'family context', 'org structure'],
+    outputs: ['adaptive support', 'participation score'],
+    sla: '99.5% uptime',
+    backed_by_evidence: true,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2025-05-01T00:00:00Z',
   },
   {
-    id: 'svc-002', service_name: 'Outcome Ready Assessment',
-    service_owner: 'troy@tech4humanity.com.au', fulfillment_owner: 'ndis-team',
-    domain: 'Support & Participation', category: 'Assessment',
-    description: 'NDIS outcome-readiness assessment service.',
-    consumer: 'Support coordinators', sla: '5 business days',
-    lifecycle_state: 'active', review_date: '2026-04-01',
-    replacement_item: null, dependency_refs: ['svc-001'],
-    created_at: '2025-11-01T00:00:00Z', updated_at: '2026-03-01T00:00:00Z',
+    id: 'SVC-002',
+    name: 'Outcome Ready',
+    description: 'NDIS outcome tracking and participant support tool',
+    owner_team: 'T4H NDIS',
+    owner_email: 'troy.latter@4pm.net.au',
+    escalation_email: 'troy.latter@4pm.net.au',
+    population: 'NDIS participants and support coordinators',
+    research_lines: ['RL-08', 'RL-05'],
+    evidence: [{ id: 'TI-03', label: 'NDIS Outcome Measurement Pilot', verified: true }],
+    ifads_hooks: [
+      { code: 'consent_gap', trigger: 'Participant data accessed without consent verification', severity: 'critical' },
+      { code: 'population_mismatch', trigger: 'Used outside NDIS participant context', severity: 'high' },
+    ],
+    risk_tier: 'critical',
+    lifecycle: 'beta',
+    inputs: ['participant goals', 'support hours', 'provider data'],
+    outputs: ['outcome score', 'progress report'],
+    sla: '99.9% uptime',
+    backed_by_evidence: true,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2025-05-01T00:00:00Z',
   },
   {
-    id: 'svc-003', service_name: 'Legacy Signal Classifier v1',
-    service_owner: 'troy@tech4humanity.com.au', fulfillment_owner: 'signal-team',
-    domain: 'Signal Quality', category: 'Classification',
-    description: 'Original signal classification — superseded by v2.',
-    consumer: 'Internal', sla: 'N/A',
-    lifecycle_state: 'deprecated', review_date: '2025-12-01',
-    replacement_item: 'svc-004', dependency_refs: [],
-    created_at: '2024-06-01T00:00:00Z', updated_at: '2025-11-01T00:00:00Z',
-  },
-  {
-    id: 'svc-004', service_name: 'Signal Classifier v2',
-    service_owner: 'troy@tech4humanity.com.au', fulfillment_owner: 'signal-team',
-    domain: 'Signal Quality', category: 'Classification',
-    description: 'Context-aware signal classification with duress detection.',
-    consumer: 'MyNeuralSignal pipeline', sla: '< 500ms',
-    lifecycle_state: 'active', review_date: '2026-08-01',
-    replacement_item: null, dependency_refs: [],
-    created_at: '2025-08-01T00:00:00Z', updated_at: '2026-04-01T00:00:00Z',
+    id: 'SVC-003',
+    name: 'MyNeuralSignal',
+    description: 'Signal trust and BCI-adjacent research platform',
+    owner_team: 'T4H Research',
+    owner_email: 'troy.latter@4pm.net.au',
+    escalation_email: 'troy.latter@4pm.net.au',
+    population: 'research participants — neurodiverse and BCI adjacent',
+    research_lines: ['RL-04', 'RL-09', 'RL-05'],
+    evidence: [],
+    ifads_hooks: [
+      { code: 'signal_distortion', trigger: 'Signal interpreted under duress conditions', severity: 'critical' },
+      { code: 'consent_gap', trigger: 'Signal collected without active consent', severity: 'critical' },
+    ],
+    risk_tier: 'critical',
+    lifecycle: 'idea',
+    inputs: ['biosignal stream', 'consent token', 'context tag'],
+    outputs: ['signal quality score', 'adaptive response'],
+    sla: 'research use only',
+    backed_by_evidence: false,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-05-01T00:00:00Z',
   },
 ];
 
 const CHANGES: ChangeRequest[] = [
   {
-    id: 'cr-001', item_id: 'svc-001', item_name: 'WorkFamilyAI Intake',
-    change_class: 'standard', approval_tier: 'tier_2', status: 'pending',
-    requested_by: 'troy@tech4humanity.com.au', requested_at: '2026-05-15T08:00:00Z',
-    summary: 'Extend SLA from 2 to 3 business days and update eligibility criteria.',
-    fields_changed: ['sla', 'consumer'],
-    approvers: [
-      { name: 'Service Owner', role: 'owner',  status: 'approved' },
-      { name: 'Domain Lead',   role: 'domain', status: 'pending'  },
-    ],
-  },
-  {
-    id: 'cr-002', item_id: 'svc-003', item_name: 'Legacy Signal Classifier v1',
-    change_class: 'high_risk', approval_tier: 'tier_3', status: 'pending',
-    requested_by: 'troy@tech4humanity.com.au', requested_at: '2026-05-16T01:00:00Z',
-    summary: 'Retire legacy classifier — all consumers migrated to v2.',
-    fields_changed: ['lifecycle_state'],
-    approvers: [
-      { name: 'Service Owner',    role: 'owner',      status: 'approved' },
-      { name: 'Governance Board', role: 'governance', status: 'pending'  },
-      { name: 'Risk & Assurance', role: 'assurance',  status: 'pending'  },
-    ],
-    retirement_reason: 'Superseded by Signal Classifier v2. All consumers migrated.',
+    id: 'CHG-001',
+    service_id: 'SVC-001',
+    intent: 'Promote WorkFamilyAI from Beta to GA',
+    reason: 'Pilot complete, evidence validated',
+    impact: 'Wider org rollout',
+    change_type: 'modify',
+    old_values: { lifecycle: 'beta' },
+    new_values: { lifecycle: 'ga' },
+    risk_tier: 'medium',
+    evidence_links: ['TI-01'],
+    ifads_mapping: [{ code: 'intent_drift', trigger: 'GA rollout exceeds target population', severity: 'medium' }],
+    status: 'under_review',
+    submitted_by: 'troy.latter@4pm.net.au',
+    submitted_at: '2026-05-14T10:00:00Z',
   },
 ];
 
+// ----------------------------------------------------------------
+// GET handler
+// ----------------------------------------------------------------
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const action = searchParams.get('action') ?? 'overview';
-  const now = new Date().toISOString();
+  const action = req.nextUrl.searchParams.get('action') ?? 'overview';
+  const service_id = req.nextUrl.searchParams.get('service_id');
 
-  if (action === 'overview') {
-    const stale   = ITEMS.filter(i => isStale(i, now) && i.lifecycle_state === 'active');
-    const noOwner = ITEMS.filter(i => !i.service_owner || !i.fulfillment_owner);
-    const pending = CHANGES.filter(c => c.status === 'pending');
-    return NextResponse.json({
-      total_items:     ITEMS.length,
-      active:          ITEMS.filter(i => i.lifecycle_state === 'active').length,
-      deprecated:      ITEMS.filter(i => i.lifecycle_state === 'deprecated').length,
-      retired:         ITEMS.filter(i => i.lifecycle_state === 'retired').length,
-      stale_items:     stale.length,
-      orphaned_items:  noOwner.length,
-      pending_changes: pending.length,
-      pending_tier_1:  pending.filter(c => c.approval_tier === 'tier_1').length,
-      pending_tier_2:  pending.filter(c => c.approval_tier === 'tier_2').length,
-      pending_tier_3:  pending.filter(c => c.approval_tier === 'tier_3').length,
-    });
+  switch (action) {
+    case 'overview': {
+      const byLifecycle = ITEMS.reduce((acc, i) => {
+        acc[i.lifecycle] = (acc[i.lifecycle] ?? 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      const missingOwner = ITEMS.filter(i => !i.owner_email).length;
+      const missingEvidence = ITEMS.filter(i => !i.backed_by_evidence).length;
+      const missingIFADS = ITEMS.filter(i => i.ifads_hooks.length === 0).length;
+      const policyViolations = ITEMS.flatMap(i => validateServiceMetadata(i)).length;
+      return NextResponse.json({
+        total: ITEMS.length,
+        by_lifecycle: byLifecycle,
+        missing_owner: missingOwner,
+        missing_evidence: missingEvidence,
+        missing_ifads: missingIFADS,
+        policy_violations: policyViolations,
+        pending_changes: CHANGES.filter(c => c.status === 'under_review' || c.status === 'draft').length,
+      });
+    }
+
+    case 'items': {
+      const items = service_id ? ITEMS.filter(i => i.id === service_id) : ITEMS;
+      const enriched = items.map(item => ({
+        ...item,
+        violations: validateServiceMetadata(item),
+        auto_risk_tier: resolveRiskTier(item),
+      }));
+      return NextResponse.json({ items: enriched });
+    }
+
+    case 'changes': {
+      const changes = service_id ? CHANGES.filter(c => c.service_id === service_id) : CHANGES;
+      return NextResponse.json({ changes });
+    }
+
+    case 'retire_check': {
+      if (!service_id) return NextResponse.json({ error: 'service_id required' }, { status: 400 });
+      const item = ITEMS.find(i => i.id === service_id);
+      if (!item) return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+      const violations = retirementSafetyCheck(item);
+      return NextResponse.json({ safe: violations.length === 0, violations });
+    }
+
+    default:
+      return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   }
-  if (action === 'items')   return NextResponse.json({ items: ITEMS });
-  if (action === 'changes') return NextResponse.json({ changes: CHANGES });
-  if (action === 'retire_check') {
-    const item = ITEMS.find(i => i.id === searchParams.get('item_id'));
-    if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
-    return NextResponse.json({ item_id: item.id, ...retirementSafetyCheck(item, 0, []) });
-  }
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
 
+// ----------------------------------------------------------------
+// POST handler
+// ----------------------------------------------------------------
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  if (body.action === 'validate') {
-    const missing = validateMetadata(body.item ?? {});
-    return NextResponse.json({ valid: missing.length === 0, missing_fields: missing });
+  const { action } = body;
+
+  if (action === 'validate') {
+    const violations = validateServiceMetadata(body.item ?? {});
+    if (violations.length > 0) {
+      return NextResponse.json({ valid: false, violations }, { status: 422 });
+    }
+    return NextResponse.json({ valid: true });
   }
-  if (body.action === 'create_change') {
-    const tier      = resolveApprovalTier(body.change_class);
-    const approvers = resolveRequiredApprovers(tier);
-    const cr: ChangeRequest = {
-      id:               `cr-${Date.now()}`,
-      item_id:          body.item_id,
-      item_name:        body.item_name ?? '',
-      change_class:     body.change_class,
-      approval_tier:    tier,
-      status:           'pending',
-      requested_by:     body.requested_by,
-      requested_at:     new Date().toISOString(),
-      summary:          body.summary,
-      fields_changed:   body.fields_changed ?? [],
-      approvers,
-      retirement_reason: body.retirement_reason,
-    };
-    return NextResponse.json({ change_request: cr }, { status: 201 });
+
+  if (action === 'change_request') {
+    const cr: Partial<ChangeRequest> = body.change_request;
+    if (!cr.service_id || !cr.intent || !cr.reason || !cr.new_values)
+      return NextResponse.json({ error: 'change_request requires service_id, intent, reason, new_values' }, { status: 400 });
+
+    // Validate new_values against policy
+    const violations = validateServiceMetadata(cr.new_values as Partial<ServiceCatalogItem>);
+    if (violations.length > 0)
+      return NextResponse.json({ accepted: false, violations }, { status: 422 });
+
+    // Build IFADS event row (in production: insert to Supabase)
+    const event = buildIFADSEvent(
+      'catalog_change',
+      cr.risk_tier ?? 'low',
+      cr.service_id,
+      'intent_drift',
+      cr.intent ?? '',
+      { change_request: cr },
+      `CHG-${Date.now()}`
+    );
+
+    // In production: insert cr into service_changes table, insert event into ifads_events
+    return NextResponse.json({ accepted: true, change_id: event.change_id, ifads_event: event });
   }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
